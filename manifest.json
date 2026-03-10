@@ -2,7 +2,7 @@
   "name": "BuildingNav",
   "short_name": "BuildingNav",
   "description": "Indoor navigation for your building",
-  "start_url": "/index.html",
+  "start_url": "/clg-navigation-demo/index.html",
   "display": "standalone",
   "background_color": "#0a0f1e",
   "theme_color": "#0f172a",
