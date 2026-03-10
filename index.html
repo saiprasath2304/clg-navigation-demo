@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="theme-color" content="#3b82f6" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="description" content="BuildingNav – Find your way around the school" />
@@ -664,7 +664,7 @@ function roomAt(mx, my) {
   return null;
 }
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/clg-navigation-demo/sw.js', { scope: '/clg-navigation-demo/' }).catch(()=>{});
 </script>
 </body>
 </html>
