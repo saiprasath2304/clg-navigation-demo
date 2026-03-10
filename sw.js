@@ -1,7 +1,8 @@
 const CACHE_NAME = 'buildingnav-v1';
 const ASSETS = [
-  '/index.html',
-  '/manifest.json',
+  '/clg-navigation-demo/',
+  '/clg-navigation-demo/index.html',
+  '/clg-navigation-demo/manifest.json',
 ];
 
 self.addEventListener('install', (e) => {
