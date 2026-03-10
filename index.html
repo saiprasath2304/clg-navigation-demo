@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="description" content="BuildingNav – Find your way around the school" />
+  <link rel="manifest" href="manifest.json" />
+  <title>BuildingNav</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Nunito', sans-serif; }
+    canvas { cursor: crosshair; touch-action: none; }
+    .tip { display: none; position: fixed; z-index: 50; pointer-events: none; }
+    .tip.show { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp 0.2s ease both; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-dvh flex flex-col overflow-hidden select-none">
+
+  <!-- ── HEADER ─────────────────────────────────────── -->
+  <header class="bg-white border-b border-slate-200 px-4 flex items-center gap-3 h-14 flex-shrink-0 shadow-sm">
+    <span class="text-2xl">🏫</span>
+    <div>
+      <h1 class="font-extrabold text-base leading-tight text-slate-800">BuildingNav</h1>
+      <p class="text-xs text-slate-400 leading-tight">School Indoor Map</p>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <!-- Floor switcher -->
+      <div class="flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+        <button id="btn-f1" onclick="switchFloor(1)"
+          class="px-3 py-1.5 rounded-md text-sm font-bold transition-all bg-blue-500 text-white shadow-sm">
+          Floor 1
+        </button>
+        <button id="btn-f2" onclick="switchFloor(2)"
+          class="px-3 py-1.5 rounded-md text-sm font-bold transition-all text-slate-500">
+          Floor 2
+        </button>
+      </div>
+      <!-- Reset -->
+      <button onclick="resetAll()"
+        class="px-3 py-1.5 rounded-lg text-sm font-bold text-slate-500 bg-slate-100 hover:bg-red-50 hover:text-red-500 transition-all">
+        ↺ Reset
+      </button>
+    </div>
+  </header>
+
+  <!-- ── INSTRUCTION BAR ───────────────────────────── -->
+  <div id="instrBar" class="bg-blue-50 border-b border-blue-100 px-4 py-2 flex items-center gap-2 text-sm text-blue-700 flex-shrink-0">
+    <span id="instrPill" class="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+    <span id="instrText">Tap a room to pick your <strong>starting point</strong></span>
+  </div>
+
+  <!-- ── MAIN ───────────────────────────────────────── -->
+  <div class="flex flex-1 overflow-hidden min-h-0">
+
+    <!-- SIDEBAR (hidden on mobile) -->
+    <aside class="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 flex-shrink-0 overflow-hidden">
+
+      <!-- Route points -->
+      <div class="p-4 border-b border-slate-100">
+        <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Your Route</p>
+        <div class="flex items-center gap-3 bg-slate-50 rounded-xl p-3 mb-2 border border-slate-200">
+          <span class="w-3 h-3 rounded-full bg-green-400 flex-shrink-0 shadow-sm"></span>
+          <div class="min-w-0">
+            <p class="text-xs text-slate-400">From</p>
+            <p class="font-bold text-sm text-slate-700 truncate" id="startLabel">Not selected</p>
+            <p class="text-xs text-slate-400" id="startFloorLabel"></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-200">
+          <span class="w-3 h-3 rounded-full bg-red-400 flex-shrink-0 shadow-sm"></span>
+          <div class="min-w-0">
+            <p class="text-xs text-slate-400">To</p>
+            <p class="font-bold text-sm text-slate-700 truncate" id="endLabel">Not selected</p>
+            <p class="text-xs text-slate-400" id="endFloorLabel"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="p-4 border-b border-slate-100">
+        <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Legend</p>
+        <div class="grid grid-cols-2 gap-y-1.5 gap-x-2">
+          <div class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>Office</div>
+          <div class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2.5 h-2.5 rounded-full bg-violet-400"></span>Meeting</div>
+          <div class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>Classroom</div>
+          <div class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>Restroom</div>
+          <div class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>Stairs/Lift</div>
+          <div class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>Entrance</div>
+        </div>
+      </div>
+
+      <!-- Directions -->
+      <div id="dirList" class="flex-1 overflow-y-auto p-4">
+        <div class="flex flex-col items-center justify-center h-full text-center gap-2 text-slate-400">
+          <span class="text-4xl opacity-30">🗺️</span>
+          <p class="text-xs leading-relaxed">Tap a <strong>start</strong> then a <strong>destination</strong> to see step-by-step directions.</p>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- MAP CANVAS -->
+    <div class="relative flex-1 flex items-center justify-center bg-slate-100 overflow-hidden" id="mapArea">
+      <canvas id="canvas" class="rounded-2xl shadow-md"></canvas>
+
+      <!-- Floor-not-on-route banner -->
+      <div id="floorBanner"
+        class="hidden absolute top-3 left-1/2 -translate-x-1/2 bg-amber-50 border border-amber-300 text-amber-700 text-xs font-semibold px-4 py-2 rounded-full shadow-sm whitespace-nowrap">
+      </div>
+
+      <!-- Bottom summary pill -->
+      <div id="routeBar"
+        class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-2xl shadow-lg px-5 py-3 flex items-center gap-5 text-center whitespace-nowrap fade-up">
+        <div>
+          <p class="text-lg font-extrabold text-blue-500" id="rbDist">—</p>
+          <p class="text-xs text-slate-400">meters</p>
+        </div>
+        <div class="w-px h-7 bg-slate-200"></div>
+        <div>
+          <p class="text-lg font-extrabold text-blue-500" id="rbTime">—</p>
+          <p class="text-xs text-slate-400">min walk</p>
+        </div>
+        <div class="w-px h-7 bg-slate-200"></div>
+        <div>
+          <p class="text-lg font-extrabold" id="rbFloor">—</p>
+          <p class="text-xs text-slate-400">floor change</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── MOBILE BOTTOM SHEET ───────────────────────── -->
+  <div id="mobileSheet"
+    class="md:hidden bg-white border-t border-slate-200 px-4 py-3 flex-shrink-0">
+    <div class="flex gap-3 mb-2">
+      <div class="flex-1 bg-slate-50 rounded-xl p-2.5 border border-slate-200">
+        <p class="text-xs text-slate-400">From</p>
+        <p class="font-bold text-sm text-slate-700 truncate" id="mStartLabel">—</p>
+      </div>
+      <div class="flex-1 bg-slate-50 rounded-xl p-2.5 border border-slate-200">
+        <p class="text-xs text-slate-400">To</p>
+        <p class="font-bold text-sm text-slate-700 truncate" id="mEndLabel">—</p>
+      </div>
+    </div>
+    <div id="mDirList" class="text-xs text-slate-500 max-h-20 overflow-y-auto"></div>
+  </div>
+
+  <!-- ── TOOLTIPS ───────────────────────────────────── -->
+  <!-- Hover name -->
+  <div id="hoverTip" class="tip bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-md"></div>
+  <!-- Stairs floor-change -->
+  <div id="floorTip" class="tip bg-white border-2 border-amber-400 rounded-xl p-3 shadow-xl max-w-48 text-xs">
+    <p class="font-bold text-amber-600 mb-1">🪜 Floor Change</p>
+    <p class="text-slate-600 leading-relaxed" id="floorTipBody"></p>
+  </div>
+
+<script>
+// ════════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════════
+const COLS = 16, ROWS = 11;
+let CELL = 54;
+
+const CAT = {
+  office:    { stroke:'#60a5fa', fill:'#eff6ff' },
+  meeting:   { stroke:'#a78bfa', fill:'#f5f3ff' },
+  classroom: { stroke:'#34d399', fill:'#ecfdf5' },
+  restroom:  { stroke:'#94a3b8', fill:'#f8fafc' },
+  entrance:  { stroke:'#22c55e', fill:'#f0fdf4' },
+  stairs:    { stroke:'#f59e0b', fill:'#fffbeb' },
+  corridor:  { stroke:'#cbd5e1', fill:'#f8fafc' },
+};
+
+const ROOMS = [
+  // Floor 1
+  { id:'entrance',    floor:1, gx:8,    gy:10.3, name:'Main Entrance',    icon:'🚪', cat:'entrance'   },
+  { id:'lobby',       floor:1, gx:8,    gy:8.7,  name:'Lobby',            icon:'🏛️', cat:'corridor'   },
+  { id:'reception',   floor:1, gx:8,    gy:7.1,  name:'Reception',        icon:'💁', cat:'office'     },
+  { id:'office_a',    floor:1, gx:2.8,  gy:7.1,  name:'Office A',         icon:'💼', cat:'office'     },
+  { id:'office_b',    floor:1, gx:13.2, gy:7.1,  name:'Office B',         icon:'💼', cat:'office'     },
+  { id:'meeting_1',   floor:1, gx:2.8,  gy:4.2,  name:'Meeting Room 1',   icon:'📋', cat:'meeting'    },
+  { id:'meeting_2',   floor:1, gx:13.2, gy:4.2,  name:'Meeting Room 2',   icon:'📋', cat:'meeting'    },
+  { id:'class_1a',    floor:1, gx:5.5,  gy:1.8,  name:'Classroom 1A',     icon:'🎓', cat:'classroom'  },
+  { id:'class_1b',    floor:1, gx:10.5, gy:1.8,  name:'Classroom 1B',     icon:'🎓', cat:'classroom'  },
+  { id:'restroom_m1', floor:1, gx:5.5,  gy:9.2,  name:'Restroom (Men)',   icon:'🚹', cat:'restroom'   },
+  { id:'restroom_f1', floor:1, gx:10.5, gy:9.2,  name:'Restroom (Women)', icon:'🚺', cat:'restroom'   },
+  { id:'stairs_1',    floor:1, gx:8,    gy:4.2,  name:'Stairs / Lift',    icon:'🪜', cat:'stairs', isStairs:true },
+
+  // Floor 2
+  { id:'stairs_2',    floor:2, gx:8,    gy:4.2,  name:'Stairs / Lift',    icon:'🪜', cat:'stairs', isStairs:true },
+  { id:'hallway_2',   floor:2, gx:8,    gy:6.2,  name:'Hallway',          icon:'🚶', cat:'corridor'   },
+  { id:'office_c',    floor:2, gx:2.8,  gy:4.2,  name:'Office C',         icon:'💼', cat:'office'     },
+  { id:'office_d',    floor:2, gx:13.2, gy:4.2,  name:'Office D',         icon:'💼', cat:'office'     },
+  { id:'meeting_3',   floor:2, gx:2.8,  gy:7.5,  name:'Meeting Room 3',   icon:'📋', cat:'meeting'    },
+  { id:'meeting_4',   floor:2, gx:13.2, gy:7.5,  name:'Meeting Room 4',   icon:'📋', cat:'meeting'    },
+  { id:'class_2a',    floor:2, gx:5.0,  gy:1.8,  name:'Classroom 2A',     icon:'🎓', cat:'classroom'  },
+  { id:'class_2b',    floor:2, gx:8,    gy:1.8,  name:'Classroom 2B',     icon:'🎓', cat:'classroom'  },
+  { id:'class_2c',    floor:2, gx:11.0, gy:1.8,  name:'Classroom 2C',     icon:'🎓', cat:'classroom'  },
+  { id:'restroom_m2', floor:2, gx:5.5,  gy:9.2,  name:'Restroom (Men)',   icon:'🚹', cat:'restroom'   },
+  { id:'restroom_f2', floor:2, gx:10.5, gy:9.2,  name:'Restroom (Women)', icon:'🚺', cat:'restroom'   },
+  { id:'principal',   floor:2, gx:2.8,  gy:9.5,  name:"Principal's Room", icon:'⭐', cat:'office'     },
+  { id:'library',     floor:2, gx:13.2, gy:9.5,  name:'Library',          icon:'📚', cat:'office'     },
+];
+
+const GRAPH = {
+  entrance:    ['lobby'],
+  lobby:       ['entrance','reception','restroom_m1','restroom_f1'],
+  reception:   ['lobby','office_a','office_b','stairs_1'],
+  office_a:    ['reception','meeting_1'],
+  office_b:    ['reception','meeting_2'],
+  meeting_1:   ['office_a','stairs_1'],
+  meeting_2:   ['office_b','stairs_1'],
+  stairs_1:    ['reception','meeting_1','meeting_2','class_1a','class_1b','stairs_2'],
+  class_1a:    ['stairs_1'],
+  class_1b:    ['stairs_1'],
+  restroom_m1: ['lobby'],
+  restroom_f1: ['lobby'],
+  stairs_2:    ['stairs_1','hallway_2','office_c','office_d','class_2a','class_2b','class_2c'],
+  hallway_2:   ['stairs_2','meeting_3','meeting_4','restroom_m2','restroom_f2','principal','library'],
+  office_c:    ['stairs_2','meeting_3'],
+  office_d:    ['stairs_2','meeting_4'],
+  meeting_3:   ['office_c','hallway_2'],
+  meeting_4:   ['office_d','hallway_2'],
+  class_2a:    ['stairs_2'],
+  class_2b:    ['stairs_2'],
+  class_2c:    ['stairs_2'],
+  restroom_m2: ['hallway_2'],
+  restroom_f2: ['hallway_2'],
+  principal:   ['hallway_2'],
+  library:     ['hallway_2'],
+};
+
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let floor = 1, startR = null, endR = null, route = [];
+let canvas, ctx, cW, cH;
+
+// ════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════
+window.addEventListener('load', () => {
+  canvas = document.getElementById('canvas');
+  ctx = canvas.getContext('2d');
+  resize(); render();
+  canvas.addEventListener('click', onClick);
+  canvas.addEventListener('mousemove', onHover);
+  canvas.addEventListener('mouseleave', () => {
+    tip('hoverTip'); tip('floorTip');
+  });
+  window.addEventListener('resize', () => { resize(); render(); });
+});
+
+function resize() {
+  const area = document.getElementById('mapArea');
+  CELL = Math.min((area.clientWidth - 24) / COLS, (area.clientHeight - 24) / ROWS);
+  cW = Math.round(COLS * CELL);
+  cH = Math.round(ROWS * CELL);
+  canvas.width = cW; canvas.height = cH;
+}
+
+const P = (gx, gy) => ({ x: gx * CELL, y: gy * CELL });
+
+// ════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════
+function render() {
+  ctx.clearRect(0, 0, cW, cH);
+  drawBg();
+  drawWalls();
+  drawRoute();
+  drawRooms();
+  updateBanner();
+}
+
+function drawBg() {
+  const s = CELL / 54;
+  // White floor plan background
+  ctx.fillStyle = '#ffffff';
+  roundRect(0, 0, cW, cH, 16 * s);
+  ctx.fill();
+  // Subtle grid
+  ctx.strokeStyle = '#f1f5f9';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,cH); ctx.stroke(); }
+  for (let y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(cW,y*CELL); ctx.stroke(); }
+}
+
+function drawWalls() {
+  const s = CELL / 54;
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 2 * s;
+
+  // Outer border
+  roundRect(CELL * 0.3, CELL * 0.3, CELL * (COLS - 0.6), CELL * (ROWS - 0.6), 10 * s);
+  ctx.stroke();
+
+  // Zone walls
+  ctx.lineWidth = 1.5 * s;
+  ctx.strokeStyle = '#e2e8f0';
+
+  // Classroom zone top separator
+  wall(0.3, 3.2, 6.8, 3.2);
+  wall(9.2, 3.2, 15.7, 3.2);
+  // Vertical splits for classrooms
+  wall(3.8, 0.3, 3.8, 3.2);
+  wall(7.1, 0.3, 7.1, 3.2);
+  wall(8.9, 0.3, 8.9, 3.2);
+  wall(12.2, 0.3, 12.2, 3.2);
+  // Middle zone walls
+  wall(0.3, 5.8, 6.8, 5.8);
+  wall(9.2, 5.8, 15.7, 5.8);
+  // Bottom zone walls
+  wall(0.3, 8.3, 6.8, 8.3);
+  wall(9.2, 8.3, 15.7, 8.3);
+  // Vertical office dividers
+  wall(5.5, 3.2, 5.5, 5.8);
+  wall(10.5, 3.2, 10.5, 5.8);
+
+  // Stairs dashed box
+  const sc = P(8, 4.2), sz = CELL * 0.72;
+  ctx.strokeStyle = '#fcd34d';
+  ctx.lineWidth = 2 * s;
+  ctx.setLineDash([5*s, 3*s]);
+  ctx.strokeRect(sc.x - sz/2, sc.y - sz/2, sz, sz);
+  ctx.setLineDash([]);
+
+  // Floor label watermark
+  ctx.fillStyle = '#f1f5f9';
+  ctx.font = `bold ${Math.round(56*s)}px 'Nunito',sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`FLOOR ${floor}`, cW/2, cH/2);
+}
+
+function wall(x1, y1, x2, y2) {
+  const a = P(x1,y1), b = P(x2,y2);
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+}
+
+function drawRoute() {
+  if (route.length < 2) return;
+  const s = CELL / 54;
+
+  // Build segments on this floor
+  const segs = []; let seg = [];
+  for (const id of route) {
+    const r = byId(id);
+    if (r && r.floor === floor) { seg.push(r); }
+    else { if (seg.length) { segs.push(seg); seg = []; } }
+  }
+  if (seg.length) segs.push(seg);
+
+  for (const segment of segs) {
+    if (segment.length < 2) continue;
+    const pts = segment.map(r => P(r.gx, r.gy));
+
+    // Shadow glow
+    ctx.strokeStyle = 'rgba(59,130,246,0.12)';
+    ctx.lineWidth = 20 * s;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    polyline(pts);
+
+    // Dashed blue route line
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2.5 * s;
+    ctx.setLineDash([8*s, 5*s]);
+    polyline(pts);
+    ctx.setLineDash([]);
+
+    // Direction arrows
+    for (let i = 0; i < pts.length-1; i++) {
+      const mx=(pts[i].x+pts[i+1].x)/2, my=(pts[i].y+pts[i+1].y)/2;
+      const ang = Math.atan2(pts[i+1].y-pts[i].y, pts[i+1].x-pts[i].x);
+      const as = 6 * s;
+      ctx.save(); ctx.translate(mx,my); ctx.rotate(ang);
+      ctx.fillStyle='#3b82f6';
+      ctx.beginPath(); ctx.moveTo(as,0); ctx.lineTo(-as,-as*.5); ctx.lineTo(-as,as*.5);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+  }
+}
+
+function polyline(pts) {
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.stroke();
+}
+
+function drawRooms() {
+  ROOMS.filter(r => r.floor === floor).forEach(drawRoom);
+}
+
+function drawRoom(room) {
+  const {x,y} = P(room.gx, room.gy);
+  const s = CELL/54, R = CELL * 0.37;
+  const c = CAT[room.cat] || CAT.office;
+  const isS = startR?.id === room.id;
+  const isE = endR?.id   === room.id;
+  const onR = route.includes(room.id);
+
+  let fill = c.fill, stroke = c.stroke, lw = 1.5*s;
+  if (isS)              { fill='#dcfce7'; stroke='#22c55e'; lw=2.5*s; }
+  if (isE)              { fill='#fee2e2'; stroke='#ef4444'; lw=2.5*s; }
+  if (onR&&!isS&&!isE)  { fill='#dbeafe'; stroke='#3b82f6'; lw=2*s; }
+
+  // Drop shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.08)';
+  ctx.shadowBlur = 8 * s;
+  ctx.shadowOffsetY = 2 * s;
+
+  ctx.beginPath();
+  if (room.isStairs) {
+    roundRect(x-R, y-R, R*2, R*2, 8*s);
+  } else {
+    ctx.arc(x, y, R, 0, Math.PI*2);
+  }
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke();
+
+  // Pulse ring for selected rooms
+  if (isS || isE) {
+    ctx.beginPath(); ctx.arc(x, y, R+6*s, 0, Math.PI*2);
+    ctx.strokeStyle = isS ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)';
+    ctx.lineWidth = 2*s; ctx.stroke();
+  }
+
+  // Emoji icon
+  const iSz = Math.max(12, Math.round(13*s));
+  ctx.font = `${iSz}px serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(room.icon, x, y - 3.5*s);
+
+  // Label
+  const lSz = Math.max(7, Math.round(8*s));
+  ctx.font = `700 ${lSz}px 'Nunito',sans-serif`;
+  let lbl = room.name; if (lbl.length > 13) lbl = lbl.slice(0,12)+'…';
+  ctx.fillStyle = isS ? '#16a34a' : isE ? '#dc2626' : onR ? '#1d4ed8' : '#64748b';
+  ctx.fillText(lbl, x, y + 11*s);
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+function updateBanner() {
+  const el = document.getElementById('floorBanner');
+  if (route.length < 2) { el.classList.add('hidden'); return; }
+  const has = route.some(id => byId(id)?.floor === floor);
+  if (!has) {
+    el.textContent = `⚠️ Route doesn't pass through Floor ${floor}`;
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+// ════════════════════════════════════════════
+//  INTERACTION
+// ════════════════════════════════════════════
+function onClick(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = cW / rect.width, scaleY = cH / rect.height;
+  const hit = roomAt((e.clientX - rect.left)*scaleX, (e.clientY - rect.top)*scaleY);
+  if (!hit) return;
+
+  if (!startR) {
+    startR = hit; setStep(2);
+  } else if (!endR) {
+    if (hit.id === startR.id) return;
+    endR = hit; findRoute(); setStep(3);
+  } else {
+    startR = endR; endR = hit; findRoute();
+  }
+  updateSidebar(); render();
+}
+
+function onHover(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = cW / rect.width, scaleY = cH / rect.height;
+  const hit = roomAt((e.clientX - rect.left)*scaleX, (e.clientY - rect.top)*scaleY);
+
+  if (hit) {
+    canvas.style.cursor = 'pointer';
+    showTip('hoverTip', `${hit.icon} ${hit.name}`, e.clientX+12, e.clientY-34);
+    if (hit.isStairs && route.includes(hit.id)) showStairsTip(e, hit);
+    else tip('floorTip');
+  } else {
+    canvas.style.cursor = 'crosshair';
+    tip('hoverTip'); tip('floorTip');
+  }
+}
+
+function showTip(id, html, x, y) {
+  const el = document.getElementById(id);
+  el.innerHTML = html;
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+  el.classList.add('show');
+}
+
+function tip(id) { document.getElementById(id).classList.remove('show'); }
+
+function showStairsTip(e, room) {
+  const idx = route.indexOf(room.id);
+  const next = byId(route[idx+1]), prev = byId(route[idx-1]);
+  let msg = 'Use stairs or lift to change floors.';
+  if (next && next.floor !== room.floor)
+    msg = `Go to <b>Floor ${next.floor}</b> using stairs or lift to continue your route.`;
+  else if (prev && prev.floor !== room.floor)
+    msg = `You came from <b>Floor ${prev.floor}</b>. Continue on Floor ${room.floor}.`;
+  document.getElementById('floorTipBody').innerHTML = msg;
+  const el = document.getElementById('floorTip');
+  el.style.left = (e.clientX+16)+'px'; el.style.top = (e.clientY-80)+'px';
+  el.classList.add('show');
+}
+
+// ════════════════════════════════════════════
+//  PATHFINDING (BFS)
+// ════════════════════════════════════════════
+function findRoute() {
+  route = bfs(startR.id, endR.id);
+  buildDirections(); buildSummary(); render();
+  if (floor !== startR.floor) switchFloor(startR.floor, false);
+}
+
+function bfs(from, to) {
+  if (from===to) return [from];
+  const visited=new Set([from]), q=[[from]];
+  while (q.length) {
+    const path=q.shift(), node=path[path.length-1];
+    for (const nb of (GRAPH[node]||[])) {
+      if (!visited.has(nb)) {
+        const np=[...path,nb];
+        if (nb===to) return np;
+        visited.add(nb); q.push(np);
+      }
+    }
+  }
+  return [from, to];
+}
+
+// ════════════════════════════════════════════
+//  UI
+// ════════════════════════════════════════════
+function setStep(n) {
+  const pill = document.getElementById('instrPill');
+  const text = document.getElementById('instrText');
+  const bar  = document.getElementById('instrBar');
+
+  if (n===2) {
+    pill.textContent='2';
+    pill.className='bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0';
+    text.innerHTML='Now tap your <strong>destination</strong>';
+    bar.className='bg-blue-50 border-b border-blue-100 px-4 py-2 flex items-center gap-2 text-sm text-blue-700 flex-shrink-0';
+  } else if (n===3) {
+    pill.textContent='✓';
+    pill.className='bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0';
+    text.innerHTML='<strong>Route found!</strong> Hover the 🪜 stairs for floor-change tips';
+    bar.className='bg-green-50 border-b border-green-100 px-4 py-2 flex items-center gap-2 text-sm text-green-700 flex-shrink-0';
+  }
+}
+
+function updateSidebar() {
+  if (startR) {
+    document.getElementById('startLabel').textContent = startR.icon+' '+startR.name;
+    document.getElementById('startFloorLabel').textContent = 'Floor '+startR.floor;
+    document.getElementById('mStartLabel').textContent = startR.icon+' '+startR.name;
+  }
+  if (endR) {
+    document.getElementById('endLabel').textContent = endR.icon+' '+endR.name;
+    document.getElementById('endFloorLabel').textContent = 'Floor '+endR.floor;
+    document.getElementById('mEndLabel').textContent = endR.icon+' '+endR.name;
+  }
+}
+
+function buildDirections() {
+  const steps = [];
+  steps.push({ color:'bg-green-100 text-green-600', icon:'🟢', text:`Start at <b>${startR.name}</b>`, sub:`Floor ${startR.floor}` });
+
+  let prevFloor = startR.floor;
+  for (let i=1; i<route.length-1; i++) {
+    const r = byId(route[i]); if(!r) continue;
+    if (r.isStairs) {
+      const nxt = byId(route[i+1]);
+      const toF = nxt ? nxt.floor : r.floor;
+      if (toF !== prevFloor) {
+        steps.push({ color:'bg-amber-100 text-amber-600', icon:'🪜', text:`Take stairs/lift to <b>Floor ${toF}</b>`, sub:`Floor ${prevFloor} → Floor ${toF}` });
+        prevFloor = toF;
+      }
+    } else {
+      steps.push({ color:'bg-blue-100 text-blue-600', icon:'👉', text:`Head to <b>${r.name}</b>`, sub:`Floor ${r.floor}` });
+    }
+  }
+  steps.push({ color:'bg-red-100 text-red-500', icon:'📍', text:`Arrive at <b>${endR.name}</b>`, sub:`Floor ${endR.floor}` });
+
+  const html = steps.map((s,i) => `
+    <div class="flex gap-2 mb-3 fade-up" style="animation-delay:${i*0.05}s">
+      <div class="w-7 h-7 rounded-lg ${s.color} flex items-center justify-center text-sm flex-shrink-0">${s.icon}</div>
+      <div class="text-xs leading-relaxed pt-0.5">${s.text}<br><span class="text-slate-400">${s.sub}</span></div>
+    </div>`).join('');
+
+  document.getElementById('dirList').innerHTML = html;
+  document.getElementById('mDirList').innerHTML = steps.map(s =>
+    `<span class="inline-flex items-center gap-1 mr-2 text-slate-500">${s.icon} ${s.sub}</span>`
+  ).join('→ ');
+}
+
+function buildSummary() {
+  const dist = Math.round((route.length-1) * 12);
+  const mins = Math.max(1, Math.round(dist/80));
+  const fc   = startR.floor !== endR.floor;
+  document.getElementById('rbDist').textContent = dist;
+  document.getElementById('rbTime').textContent = mins;
+  const rfEl = document.getElementById('rbFloor');
+  rfEl.textContent = fc ? 'Yes ↕' : 'No';
+  rfEl.className = `text-lg font-extrabold ${fc ? 'text-amber-500' : 'text-green-500'}`;
+  document.getElementById('routeBar').classList.remove('hidden');
+  document.getElementById('routeBar').style.display='flex';
+}
+
+function switchFloor(f, doRender=true) {
+  floor = f;
+  document.getElementById('btn-f1').className = `px-3 py-1.5 rounded-md text-sm font-bold transition-all ${f===1?'bg-blue-500 text-white shadow-sm':'text-slate-500'}`;
+  document.getElementById('btn-f2').className = `px-3 py-1.5 rounded-md text-sm font-bold transition-all ${f===2?'bg-blue-500 text-white shadow-sm':'text-slate-500'}`;
+  if (doRender) render();
+}
+
+function resetAll() {
+  startR=null; endR=null; route=[];
+  const pill=document.getElementById('instrPill'), text=document.getElementById('instrText'), bar=document.getElementById('instrBar');
+  pill.textContent='1';
+  pill.className='bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0';
+  text.innerHTML='Tap a room to pick your <strong>starting point</strong>';
+  bar.className='bg-blue-50 border-b border-blue-100 px-4 py-2 flex items-center gap-2 text-sm text-blue-700 flex-shrink-0';
+  ['startLabel','endLabel'].forEach(id => document.getElementById(id).textContent='Not selected');
+  ['startFloorLabel','endFloorLabel','mStartLabel','mEndLabel'].forEach(id => document.getElementById(id).textContent='—');
+  document.getElementById('dirList').innerHTML=`<div class="flex flex-col items-center justify-center h-full text-center gap-2 text-slate-400"><span class="text-4xl opacity-30">🗺️</span><p class="text-xs leading-relaxed">Tap a <strong>start</strong> then a <strong>destination</strong> to see step-by-step directions.</p></div>`;
+  document.getElementById('mDirList').innerHTML='';
+  document.getElementById('routeBar').style.display='none';
+  render();
+}
+
+function byId(id) { return ROOMS.find(r=>r.id===id)||null; }
+
+function roomAt(mx, my) {
+  for (const r of ROOMS.filter(r=>r.floor===floor)) {
+    const {x,y}=P(r.gx,r.gy), R=CELL*0.43;
+    if ((mx-x)**2+(my-y)**2<=R*R) return r;
+  }
+  return null;
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>

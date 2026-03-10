@@ -1,0 +1,30 @@
+{
+  "name": "BuildingNav",
+  "short_name": "BuildingNav",
+  "description": "Indoor navigation for your building",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0a0f1e",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%230a0f1e'/><text y='130' x='96' text-anchor='middle' font-size='120'>🏢</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%230a0f1e'/><text y='360' x='256' text-anchor='middle' font-size='320'>🏢</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["navigation", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Find a Room",
+      "url": "/index.html",
+      "description": "Open building map"
+    }
+  ]
+}
